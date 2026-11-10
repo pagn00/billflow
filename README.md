@@ -1,2 +1,27 @@
-# billflow
-AI-powered bill management and monthly reporting dashboard
+# 账单簿（Billflow）
+
+轻量的中文账单管理 Web App。无需安装或注册服务账号，支持在浏览器中本地使用。
+
+## 使用
+
+直接打开 `index.html` 即可。推荐用本地静态服务器或 GitHub Pages 访问，以确保浏览器 Web Crypto API 正常工作。首次访问设置账本密码，之后用该密码解锁。
+
+### 发布到 GitHub Pages
+
+仓库 Settings → Pages → Build and deployment 选择 **Deploy from a branch**，分支选择 `main`、目录选择 `/ (root)`，保存后等待 Pages 发布。发布完成后，所有人均可通过 Pages 网址访问应用；每位用户的账单只存在其自己的浏览器中。
+
+## 功能
+
+- 账本密码解锁；使用 PBKDF2 派生密钥、AES-GCM 加密浏览器本地账单。
+- 手动添加、编辑、删除收支，按日期、金额、备注和类型保存。
+- 自动分类及手动修改：餐饮、交通、购物、住房、医疗、娱乐、工资、奖金、转账、其他。
+- CSV、Excel（XLSX/XLS）导入与 CSV 备份导出。
+- PNG、JPG、WEBP 截图 OCR（需联网加载 Tesseract.js 和中文语言数据）；识别结果需人工核对。
+- 月度收入、支出、结余；近六个月收支趋势和支出分类图表。
+- 按类别筛选和备注搜索。
+
+## 隐私与限制
+
+这是无需后端的本地优先应用：**不会创建在线账号，也不会在不同设备间同步账单**。所有账单保存在当前浏览器的 localStorage，密文使用 AES-GCM 加密；密码无法找回，清除浏览器数据会删除账本。请妥善保管密码并定期导出 CSV 备份。OCR 和 Excel 解析依赖 jsDelivr CDN，使用时需要网络连接。OCR 为自动识别，导入前请检查日期、金额、收支方向和类别。
+
+支付平台 API 暂未集成；真实 API 接入通常需要后端服务和相应平台授权。
