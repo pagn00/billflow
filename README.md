@@ -1,40 +1,34 @@
-# 账单簿 Billflow
+# 账单簿 Billflow — 多用户云端版
 
-在线账单管理 Web App：注册/登录、账单增删改、CSV/Excel 导入、截图 OCR、自动分类、月度趋势图和 CSV 导出。账单按用户隔离，内容通过 AES-256-GCM 加密后存储，密码使用 bcrypt 哈希。
+在线收支管理应用，适���多人分别注册并使用各自账本。包括邮箱/密码注册登录、账单增删改、分类、CSV/Excel 导入、截图 OCR、月报和图表。生产部署使用 PostgreSQL 持久化数据库；账单负载在写入数据库前用 AES-256-GCM 加密，密码以 bcrypt 哈希保存，账单 API 根据登录用户隔离数据。
 
-## 一键部署到 Render
+## 部署到 Render
 
-本仓库包含 `render.yaml` Blueprint 配置。部署前请先在 Render 连接 GitHub 并授权访问 `pagn00/billflow`：
+仓库提供 `render.yaml` Blueprint。部署需要你本人登录 Render 并授权 GitHub 仓库；我无法代你授权第三方账户或启动云服务。
 
-1. 登录 Render，选择 **New → Blueprint**，选择这个 GitHub 仓库。
-2. Render 读取 `render.yaml` 并创建 Web Service 和持久化磁盘；确认并部署。
-3. 等待构建成功，在 Render 服务页面打开 `https://<服务名>.onrender.com`。
-4. 首次使用点击“注册”，创建账户即可开始记账。
+1. 打开 Render Dashboard，选择 **New → Blueprint**。
+2. 连接 GitHub，并选中 `pagn00/billflow` 仓库及 `main` 分支。
+3. 检查 Blueprint 会创建一个 Starter Web Service 和一个 Basic PostgreSQL 数据库。数据库与服务是付费资源；部署前请在 Render 页面核对当前价格和区域。
+4. 确认部署。Render 自动生成 `JWT_SECRET`、`ENCRYPTION_KEY`，将数据库连接串注入服务。
+5. 部署成功后，打开 Render 服务给出的 `https://...onrender.com` 地址，注册账号即可使用。可通过 `/api/health` 检查服务和数据库状态。
 
-Render Blueprint 自动生成 `JWT_SECRET` 和 `ENCRYPTION_KEY`，数据库文件存放在挂载的 `/var/data` 持久盘。该配置使用 Render 的 Starter Web Service 和 1 GB 持久盘，属于付费资源；账单和数据库依赖持久盘，不能改成临时文件系统。上线前在 Render 的服务页确认当前套餐价格。
-
-若不使用 Blueprint，可用 Node.js 20+ 部署：Build `npm install --omit=dev`，Start `npm start`。必须设置 `NODE_ENV=production`、强随机 `JWT_SECRET`、强随机 `ENCRYPTION_KEY`、`DATABASE_PATH`（指向持久化磁盘）。不要把密钥提交到 Git。生产环境无持久盘时，重启/重新部署可能丢失 SQLite 数据。
+不要将 `.env`、生产密钥或数据库连接串提交到 Git，也不要把密钥发给他人。不要更换已经在用的 `ENCRYPTION_KEY`，否则现有加密账单无法解密。
 
 ## 本地运行
 
-```bash
+需要 Node.js 20+ 和本地 PostgreSQL：创建名为 `billflow` 的数据库，然后：
+
+```sh
 cp .env.example .env
-# 编辑 .env，设置随机密钥；开发模式可使用示例路径
+# 编辑 .env，设定高熵随机 JWT_SECRET 与 ENCRYPTION_KEY，并确认 DATABASE_URL
 npm install
 npm start
 ```
 
-然后访问 http://localhost:3000。建议用密码管理器生成随机密钥；不要在部署间更换 `ENCRYPTION_KEY`，否则已保存的账单将无法解密。
+打开 `http://localhost:3000`。开发用默认示例密钥仅限本机试运行，不能用于生产。
 
-## 功能与数据说明
+## 扩容与运行边界
 
-- 个人账号与登录；每个账单操作都按登录用户 ID 限定。
-- 手动记账、编辑、删除，按月份筛选，按备注/分类搜索。
-- 分类：餐饮、交通、购物、住房、医疗、娱乐、工资、奖金、转账、其他；可手动调整。
-- CSV/Excel 文件解析和截图 OCR（浏览器端处理，依赖 jsDelivr 网络资源）；核对识别结果后再导入。
-- 月度收入、支出、结余，近六个月趋势、分类环图；支持导出 CSV。
-- 数据由服务端加密后保存，HTTPS 由 Render 提供。仍应定期导出备份；忘记密码可通过登录页面提示重置账户密码的功能尚未提供。
+API 服务是无状态的，多个 Web 实例可连接同一 PostgreSQL 数据库；Render Blueprint 提供一个基础实例和托管 PostgreSQL，能服务普通小型多用户应用。实际并发能力取决于套餐、数据库容量、连接池和导入量。高流量上线前应压测并按指标升级数据库/实例、配置连接池上限和数据库备份/恢复演练。此仓库不代表已完成独立安全审计或高可用 SLA。
 
-## 上线注意事项
-
-云端服务创建需要你在 Render 登录并授权 GitHub 仓库；我无法代你接受第三方平台条款、授权账号、填写付款资料或启动云服务。因此，仅提交配置还不等于公网实例已创建。请不要向任何人发送 Render 密码或部署密钥。注册上线后可在应用地址直接创建账号使用。
+OCR、Excel 和图表组件在浏览器端通过 CDN 加载，因此用户浏览器需要能访问 jsDelivr；识别结果必须人工核对。当前未接入支付机构 API、邮箱验证、找回密码、管理员后台或端到端加密。部署前请根据面向公众的服务要求补齐隐私声明、服务条款、备份和监控。
